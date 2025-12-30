@@ -1,259 +1,399 @@
 # SimpleOS
 
-A minimal bare-metal operating system written in Rust.
+A minimal bare-metal operating system written in Rust, featuring a custom bootloader that loads a kernel from disk. This is an educational project designed to demonstrate fundamental OS development concepts.
 
 ## Overview
 
-SimpleOS is a bare-bones OS project built from scratch using Rust's `no_std` environment. This project demonstrates fundamental OS development concepts including direct hardware interaction, custom linker scripts, and panic handling without relying on the Rust standard library.
+SimpleOS demonstrates fundamental OS development concepts:
+- Custom bootloader written in 16-bit real mode
+- Disk I/O using BIOS interrupts
+- Kernel loading from disk sectors
+- **Colorful VGA text mode output** with 16-color palette
+- Bare-metal Rust programming
 
 ## Features
 
-- **`no_std` Environment**: Runs without the Rust standard library, providing complete control over the runtime
-- **Custom Panic Handler**: Implements custom panic behavior for bare-metal execution
-- **Custom Linker Script**: Uses a custom linker script for precise memory layout control
-- **16-bit Real Mode**: Targets x86 16-bit real mode execution (bootloader compatible)
-- **Nightly Rust**: Leverages cutting-edge Rust features for OS development
-- **Boot Sector Compatible**: Generates bootable binary with proper boot signature
-
-## Binary Specifications
-
-### Target Architecture
-- **Architecture**: x86 (i386)
-- **Execution Mode**: 16-bit real mode (code16)
-- **Target Triple**: `i386-unknown-none-code16`
-- **CPU**: Intel i386 (compatible with 16-bit instructions)
-- **Endianness**: Little-endian
-- **Pointer Width**: 32-bit
-- **Linking**: Static linking only (no dynamic linking)
-
-### Memory Layout
-- **Load Address**: `0x7C00` (standard BIOS boot sector address)
-- **Binary Size**: Padded to 512 bytes (boot sector size)
-- **Boot Signature**: `0xAA55` at bytes 510-511
-- **Stack Alignment**: 128-bit
-- **Position Independent**: No (absolute addressing from 0x7C00)
-
-### Compilation Features
-- **Panic Strategy**: Abort (no unwinding)
-- **Relocation Model**: Static
-- **Redzone**: Disabled (essential for bare-metal)
-- **Linker**: rust-lld (LLVM linker bundled with Rust)
-- **Build Standard Library**: Builds `core` from source
-
-### Binary Format
-- **Format**: ELF 32-bit LSB executable
-- **Sections**: 
-  - `.eh_frame_hdr` - Exception handling frame header
-  - `.eh_frame` - Exception handling frame
-  - `.comment` - Compiler and linker metadata
-
-## Prerequisites
-
-- [Rust](https://www.rust-lang.org/tools/install) (nightly toolchain)
-- Cargo (comes with Rust)
+- **Multi-stage Boot Process**: Bootloader loads kernel from disk using BIOS INT 13h
+- **Custom Bootloader**: 512-byte boot sector that displays boot messages
+- **Colorful Display**: 16-color VGA text mode with colored boot messages and status indicators
+- **Standalone Kernel**: Runs in protected/long mode with VGA text output
+- **Workspace Architecture**: Organized as a Cargo workspace with separate bootloader and kernel crates
+- **No Standard Library**: Pure `no_std` environment for complete hardware control
 
 ## Project Structure
 
 ```
 simpleos/
-├── .cargo/
-│   └── config.toml          # Cargo build configuration
+├── bootloader/              # 16-bit bootloader (512 bytes)
+│   ├── src/
+│   │   └── main.rs         # Bootloader entry point
+│   ├── linker.ld           # Bootloader linker script
+│   └── Cargo.toml
+├── kernel/                  # Main kernel
+│   ├── src/
+│   │   └── main.rs         # Kernel entry point
+│   ├── linker.ld           # Kernel linker script
+│   └── Cargo.toml
+├── future/                  # Future features (not built yet)
+│   ├── shared_libs/        # Shared utilities
+│   ├── advanced_bootloader/  # Multi-stage bootloader
+│   └── drivers/            # Advanced drivers
+├── docs/                    # Comprehensive documentation
+│   ├── COMMANDS.md         # Command reference
+│   ├── COLORS.md           # VGA color system
+│   ├── PROJECT_STRUCTURE.md # Project organization
+│   ├── SETUP.md            # Setup and troubleshooting
+│   ├── ROADMAP.md          # Development roadmap
+│   └── CONTRIBUTING.md     # Contributing guidelines
 ├── build/
 │   └── targets/
-│       ├── 16bit_target.json    # Custom target specification
-│       └── 16bit_target.md      # Target documentation
-├── src/
-│   ├── main.rs              # Main entry point
-│   └── build.rs             # Build script for linker configuration
-├── linker.ld                # Custom linker script (REQUIRED)
-├── Cargo.toml               # Project dependencies and configuration
-├── rust-toolchain.toml      # Rust toolchain specification
-├── examine.sh               # Binary examination helper script
-└── README.md                # This file
+│       └── 16bit_target.json   # Custom 16-bit x86 target
+├── Makefile                # Main build system
+└── Cargo.toml              # Workspace configuration
+```
+
+## Prerequisites
+
+- **Rust Nightly**: Required for unstable features and `build-std`
+- **QEMU**: For testing the OS (`qemu-system-x86_64`)
+- Standard build tools: `cargo`, `rustup`
+
+### Installation
+
+```bash
+# Install Rust (if not already installed)
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# Install nightly toolchain
+rustup toolchain install nightly
+rustup default nightly
+
+# Add required components
+rustup component add rust-src llvm-tools-preview
+
+# Install QEMU
+# Ubuntu/Debian:
+sudo apt install qemu-system-x86
+
+# macOS:
+brew install qemu
+
+# Fedora:
+sudo dnf install qemu-system-x86
 ```
 
 ## Building
 
-The project uses a custom 16-bit target specification and builds the core library from source:
+### Quick Build and Run
 
 ```bash
-# Development build
-cargo build --target=build/targets/16bit_target.json
+# Build and run in one command (recommended)
+make run
 
-# Release build
-cargo build --release --target=build/targets/16bit_target.json
+# Or just build everything
+make
+
+# Build in debug mode
+make BUILD_MODE=debug
 ```
 
-The compiled binary will be located at:
-```
-target/16bit_target/release/simpleos
-```
+This creates:
+- `target/16bit_target/release/bootloader` - The boot sector (512 bytes)
+- `target/x86_64-unknown-none/release/kernel` - The kernel binary
+- `target/image/simpleos.img` - Complete bootable disk image (10MB)
 
-## Examining the Binary
+## Running
 
-### Using hexdump
+### Using QEMU
+
 ```bash
-# View hexdump
-hexdump -C target/16bit_target/release/simpleos | less
+# Method 1: Use Makefile (recommended)
+make run
 
-# View first 20 lines
-hexdump -C target/16bit_target/release/simpleos | head -n 20
+# Method 2: Direct QEMU command
+qemu-system-x86_64 -drive format=raw,file=target/image/simpleos.img -m 512M
 ```
 
-### Using the helper script
+### Expected Output
+
+When you run the OS, you should see colorful output:
+
+```
+SeaBIOS (Version 1.x.x)
+...
+[BOOT] Booting from Hard Disk...
+[ OK ] Kernel loaded successfully
+[INFO] Jumping to kernel...
+
+SimpleOS - A Rust Operating System          (Yellow/White on Blue)
+
+  [OK] Bootloader loaded successfully        (Green on Black)
+  [OK] Kernel initialized                    (Green on Black)
+  [OK] VGA text mode enabled                 (Green on Black)
+
+  Hello, World!                              (Cyan on Black)
+  Welcome to SimpleOS!                       (Pink on Black)
+
+  [Rainbow color bar]                        (Multi-color gradient)
+
+  System Status: Running | Press Ctrl+A...   (Status bar at bottom)
+```
+
+**Color Features:**
+- **Bootloader messages** - Colored text using BIOS (Yellow/Green/Cyan)
+- **Kernel display** - Full 16-color VGA palette with colored status messages
+- **Rainbow effect** - Multi-color gradient bar demonstration
+- **Status indicators** - Green `[OK]` tags, color-coded messages
+
+See [docs/COLORS.md](docs/COLORS.md) for detailed color documentation.
+
+### QEMU Controls
+
+- **Exit QEMU**: Press `Ctrl+A` then `X`
+- **Pause/Resume**: Press `Ctrl+A` then `C` for console, then `c` to continue
+- **Reset**: Press `Ctrl+A` then `R`
+
+## Makefile Targets
+
+SimpleOS uses a comprehensive Makefile for all build tasks:
+
 ```bash
-# Make it executable (first time only)
-chmod +x examine.sh
+make              # Build everything (release mode)
+make run          # Build and run in QEMU
+make debug        # Run with GDB debugger (port 1234)
+make clean        # Clean build artifacts
+make check        # Check code without building
+make info         # Show build information
+make help         # Show all available targets
 
-# Show hexdump
-./examine.sh hex
-
-# Show full hexdump with pager
-./examine.sh fullhex
-
-# Disassemble the binary
-./examine.sh disasm
-
-# Extract strings from binary
-./examine.sh strings
-
-# Show symbol table
-./examine.sh symbols
-
-# Show ELF headers and sections
-./examine.sh readelf
-
-# Show all available commands
-./examine.sh info
+# Development helpers
+make fmt          # Format code with rustfmt
+make lint         # Run clippy lints
+make hexdump-boot # Show bootloader hex dump
+make disasm-boot  # Disassemble bootloader
 ```
 
-## Configuration
+For all targets and detailed command documentation, see: [docs/COMMANDS.md](docs/COMMANDS.md)
 
-### Custom Target (`build/targets/16bit_target.json`)
+## How It Works
 
-The custom target file configures the compiler for 16-bit x86 code generation:
-- Sets architecture to x86 with i386 CPU
-- Configures LLVM for 16-bit code generation (`code16`)
-- Disables features incompatible with bare-metal (PIE, dynamic linking, redzone)
-- Sets proper data layout for 16-bit addressing
+### Boot Process
 
-See `build/targets/16bit_target.md` for detailed documentation on each configuration field.
+1. **BIOS Stage**
+   - BIOS loads the first sector (512 bytes) from disk to `0x7C00`
+   - Checks for boot signature `0xAA55` at bytes 510-511
+   - Jumps to `0x7C00` to start bootloader
 
-### Cargo Configuration (`.cargo/config.toml`)
+2. **Bootloader Stage** (`bootloader/src/main.rs`)
+   - Sets up segment registers (DS, ES, SS)
+   - Prints "Booting from Hard Disk..." using BIOS INT 10h
+   - Loads kernel from disk using BIOS INT 13h:
+     - Reads 16 sectors starting from sector 2
+     - Loads to memory address `0x10000`
+   - Prints "Jumping to kernel..."
+   - Jumps to kernel at `0x10000`
 
-Configures unstable Rust features:
-- `build-std = ["core"]` - Builds core library from source
-- `build-std-features = ["compiler-builtins-mem"]` - Includes memory intrinsics
-- Enables unstable options required for custom targets
+3. **Kernel Stage** (`kernel/src/main.rs`)
+   - Clears VGA text buffer at `0xB8000`
+   - Prints "Hello, World!" directly to VGA memory
+   - Halts the CPU with `hlt` instruction
 
-### Linker Script (`linker.ld`)
+### Memory Map
 
-**⚠️ REQUIRED - Do not delete!**
+```
+0x00000000 - 0x000003FF  : Real Mode IVT (Interrupt Vector Table)
+0x00000400 - 0x000004FF  : BIOS Data Area
+0x00000500 - 0x00007BFF  : Free memory (real mode)
+0x00007C00 - 0x00007DFF  : Bootloader (512 bytes)
+0x00007E00 - 0x0000FFFF  : Free memory
+0x00010000 - 0x0001FFFF  : Kernel code (loaded here)
+0x000A0000 - 0x000BFFFF  : VGA memory
+0x000B8000 - 0x000B8FA0  : VGA text mode buffer (80x25)
+0x00100000+              : Extended memory (1MB+)
+```
 
-The custom linker script is essential for:
-1. **Load Address**: Sets the binary to load at `0x7C00` (BIOS boot sector address)
-2. **Padding**: Fills the binary with zeros up to 510 bytes
-3. **Boot Signature**: Writes `0xAA55` at bytes 510-511 to make the sector bootable
+## Development
 
-The `build.rs` script automatically passes this linker script to the compiler.
+### Modifying the Bootloader
 
-### Panic Behavior
+Edit `bootloader/src/main.rs`:
 
-Both development and release profiles use `panic = "abort"` to avoid unwinding, which is essential for bare-metal environments where unwinding support is unavailable.
+```rust
+// Example: Change boot message
+print_string(b"My Custom OS Loading...\r\n");
+```
+
+### Modifying the Kernel
+
+Edit `kernel/src/main.rs`:
+
+```rust
+// Example: Print different message
+print_string(b"Welcome to MyOS!", 0, 0);
+```
+
+### Building Individual Components
+
+```bash
+# Build only bootloader
+make bootloader
+
+# Build only kernel
+make kernel
+
+# Or manually with cargo
+cd bootloader && cargo build --release --target=../build/targets/16bit_target.json
+cd kernel && cargo build --release --target=x86_64-unknown-none
+```
 
 ## Technical Details
 
-### No Standard Library
+### Bootloader Specifications
 
-This project uses `#![no_std]` to exclude the Rust standard library, which is necessary for bare-metal programming where there's no underlying operating system.
+- **Size**: Exactly 512 bytes (boot sector size)
+- **Load Address**: `0x7C00` (BIOS loads here)
+- **Architecture**: x86 16-bit real mode
+- **Boot Signature**: `0xAA55` at bytes 510-511
+- **Disk Interface**: BIOS INT 13h (CHS addressing)
 
-### No Main
+### Kernel Specifications
 
-The `#![no_main]` attribute is used because the standard Rust runtime is not available. The entry point is defined with `#[no_mangle]` to prevent name mangling.
+- **Load Address**: `0x100000` (1MB - standard kernel location)
+- **Architecture**: x86-64 long mode
+- **Binary Format**: Raw binary (no ELF headers)
+- **Display**: VGA text mode (80x25 characters)
+- **Memory**: Direct VGA buffer access at `0xB8000`
 
-### Custom Panic Handler
+### Compilation Targets
 
-A custom panic handler is implemented as required in `no_std` environments:
+**Bootloader**: Custom 16-bit target (`build/targets/16bit_target.json`)
+- CPU: i386 with 16-bit code generation
+- Features: No SSE, no red-zone, static linking
+- Output: Raw binary format
 
-```rust
-#[panic_handler]
-pub fn panic_handler(_info: &core::panic::PanicInfo) -> ! {
-    loop {}
-}
+**Kernel**: x86_64-unknown-none
+- CPU: x86-64
+- Model: Kernel code model
+- Features: No standard library, no unwinding
+- Output: Raw binary format
+
+## Troubleshooting
+
+### Build Errors
+
+**Error**: "error: failed to run custom build command"
+```bash
+# Solution: Make sure you're using nightly Rust
+rustup default nightly
+rustup component add rust-src
 ```
 
-Currently, it enters an infinite loop. In a real OS, this would halt the CPU or display an error message.
-
-### Boot Sector Requirements
-
-For a binary to be bootable by the BIOS, it must:
-1. Be exactly 512 bytes
-2. Have the magic signature `0xAA55` at bytes 510-511
-3. Be loaded at memory address `0x7C00`
-
-The linker script ensures all these requirements are met.
-
-## Running the OS
-
-To run this OS, you'll need to:
-
-1. **Build the binary** (as shown above)
-2. **Write to a bootable medium** (USB drive, floppy image, or hard drive image)
-3. **Boot from the medium** using real hardware or an emulator
-
-### Using an Emulator (QEMU example)
+**Error**: "Make: command not found"
 ```bash
-# Install QEMU
-sudo apt install qemu-system-x86  # Ubuntu/Debian
-# or
-brew install qemu                  # macOS
+# Install make:
+# Ubuntu/Debian: sudo apt install build-essential
+# macOS: xcode-select --install
+# Or use cargo directly - see "Building Individual Components"
+```
 
-# Run the binary
-qemu-system-i386 -drive format=raw,file=target/16bit_target/release/simpleos
+**Error**: "linker script not found"
+```bash
+# Solution: Ensure you're in the project root directory
+cd /path/to/simpleos
+make
+```
+
+### Runtime Issues
+
+**QEMU shows blank screen**
+- Check that the disk image was created: `ls -lh target/image/simpleos.img`
+- Verify bootloader size is exactly 512 bytes: `make info`
+- Try with debug output: `qemu-system-x86_64 -drive format=raw,file=target/image/simpleos.img -serial stdio -d int`
+
+**"No bootable device" error**
+- Bootloader must be exactly 512 bytes
+- Must have magic signature `0xAA55` at end
+- Verify: `hexdump -C target/16bit_target/release/bootloader | tail -1`
+
+**Kernel doesn't load**
+- Check kernel binary exists: `ls -lh target/x86_64-unknown-none/release/kernel`
+- Verify disk image contains kernel: `make hexdump-disk`
+- Bootloader reads starting at sector 2 (byte 512)
+
+## Cleaning
+
+```bash
+# Clean build artifacts (keeps dependencies)
+make clean
+
+# Deep clean everything (including dependencies)
+make distclean
+
+# Clean with cargo directly
+cargo clean
 ```
 
 ## Development Roadmap
 
-This is a foundational project that can be extended with:
-- [ ] VGA text mode output
-- [ ] BIOS interrupt handling
-- [ ] Keyboard input via BIOS interrupts
-- [ ] Transition to 32-bit protected mode
-- [ ] Memory management
-- [ ] File systems
-- [ ] Process scheduling
+SimpleOS has a comprehensive development plan with 10 phases:
+
+**Completed:**
+- ✅ Phase 1: Foundation (bootloader, kernel, VGA colors)
+
+**Upcoming:**
+- 🔜 Phase 2: Protected Mode (GDT, A20 line)
+- 📋 Phase 3: Long Mode (64-bit, paging)
+- 📋 Phase 4: Memory Management
+- 📋 Phase 5: Interrupt Handling
+- 📋 Phase 6: Device Drivers
+- 📋 Phase 7: File System
+- 📋 Phase 8: Process Management
+- 📋 Phase 9: User Space
+- 📋 Phase 10: Advanced Features
+
+The `future/` directory contains code ready for integration:
+- **Advanced Bootloader** (`future/advanced_bootloader/`): Multi-stage boot
+- **Shared Libraries** (`future/shared_libs/`): GDT, paging utilities
+- **Advanced Drivers** (`future/drivers/`): Enhanced VGA driver
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the complete development plan and timeline.
+
+## Documentation
+
+Comprehensive documentation is available in the `docs/` directory:
+
+- **[QUICKSTART.md](QUICKSTART.md)** - Get started in 30 seconds
+- **[docs/COMMANDS.md](docs/COMMANDS.md)** - Complete command reference
+- **[docs/COLORS.md](docs/COLORS.md)** - VGA color system guide
+- **[docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md)** - Project organization
+- **[docs/SETUP.md](docs/SETUP.md)** - Setup and troubleshooting
+- **[docs/ROADMAP.md](docs/ROADMAP.md)** - Development roadmap
+- **[docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)** - How to contribute
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history
 
 ## Resources
 
-- [Writing an OS in Rust](https://os.phil-opp.com/) - Excellent tutorial series
-- [The Rust Programming Language](https://doc.rust-lang.org/book/) - Official Rust book
-- [Rust Embedded Book](https://rust-embedded.github.io/book/) - Embedded Rust guide
 - [OSDev Wiki](https://wiki.osdev.org/) - Comprehensive OS development resource
-- [Rust Custom Targets](https://doc.rust-lang.org/rustc/targets/custom.html) - Custom target documentation
-- [x86 Assembly Guide](https://wiki.osdev.org/X86_Assembly) - x86 assembly reference
-
-## Troubleshooting
-
-### Binary not found
-If you get "Binary not found" errors, ensure you've built with the correct target:
-```bash
-cargo build --release --target=build/targets/16bit_target.json
-```
-
-### Build errors with linker script
-The `linker.ld` file is **required** and referenced by `build.rs`. Do not delete or move it.
-
-### JSON parsing errors
-The target JSON file (`build/targets/16bit_target.json`) must be valid JSON without comments. Comments are documented in the accompanying `.md` file.
+- [Writing an OS in Rust](https://os.phil-opp.com/) - Excellent tutorial series
+- [Rust Embedded Book](https://rust-embedded.github.io/book/) - Embedded Rust guide
+- [Intel x86 Manual](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html) - CPU architecture reference
+- [BIOS Interrupt List](http://www.ctyme.com/intr/int.htm) - BIOS interrupt reference
 
 ## License
 
 [Specify your license here]
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues or pull requests.
-
 ## Author
 
 Muhammad Thariq
+
+## Contributing
+
+Contributions are welcome! Please read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for guidelines on:
+- Development setup
+- Coding standards
+- Testing procedures
+- Submitting pull requests
+- Areas needing help
+
+Feel free to submit issues or pull requests. Check [docs/ROADMAP.md](docs/ROADMAP.md) for planned features.

@@ -1,12 +1,27 @@
-[package]
-name = "simpleos"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+resolver = "2"
+members = [
+    "bootloader",
+    "kernel",
+]
 
-[dependencies]
+[workspace.package]
+version = "0.1.0"
+authors = ["Muhammad Thariq"]
+edition = "2021"
+
+[workspace.dependencies]
+# Shared dependencies across workspace
+bootloader = { path = "bootloader" }
+kernel = { path = "kernel" }
+common = { path = "shared/common" }
+cpu_utils = { path = "shared/cpu_utils" }
 
 [profile.dev]
 panic = "abort"
 
 [profile.release]
 panic = "abort"
+opt-level = "z"
+lto = true
+codegen-units = 1
