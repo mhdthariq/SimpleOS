@@ -2,8 +2,8 @@ OUTPUT_FORMAT(binary)
 ENTRY(_start)
 
 SECTIONS {
-    /* Kernel loads at 1MB (0x100000) - standard location for x86 kernels */
-    . = 0x100000;
+    /* Kernel loads at 64KB (0x10000) - where bootloader places it in real mode */
+    . = 0x10000;
 
     .boot : {
         *(.multiboot)

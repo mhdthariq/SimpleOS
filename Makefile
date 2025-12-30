@@ -12,12 +12,11 @@ KERNEL_DIR := kernel
 
 # Target specifications
 TARGET_16BIT := build/targets/16bit_target.json
-TARGET_64BIT := x86_64-unknown-none
 
 # Output files
 DISK_IMAGE := $(IMAGE_DIR)/simpleos.img
 BOOTLOADER_BIN := $(BUILD_DIR)/16bit_target/$(BUILD_MODE)/bootloader
-KERNEL_BIN := $(BUILD_DIR)/$(TARGET_64BIT)/$(BUILD_MODE)/kernel
+KERNEL_BIN := $(BUILD_DIR)/16bit_target/$(BUILD_MODE)/kernel
 
 # Build flags
 ifeq ($(BUILD_MODE),release)
@@ -91,12 +90,12 @@ $(BOOTLOADER_BIN):
 	fi
 	@echo "$(GREEN)✓ Bootloader built (512 bytes)$(NC)"
 
-# Build kernel (64-bit)
+# Build kernel (16-bit)
 kernel: $(KERNEL_BIN)
 
 $(KERNEL_BIN):
-	@echo "$(CYAN)[2/3] Building kernel (64-bit)...$(NC)"
-	@cd $(KERNEL_DIR) && cargo build $(CARGO_FLAGS) --target=$(TARGET_64BIT)
+	@echo "$(CYAN)[2/3] Building kernel (16-bit)...$(NC)"
+	@cd $(KERNEL_DIR) && cargo build $(CARGO_FLAGS)
 	@if [ ! -f "$(KERNEL_BIN)" ]; then \
 		echo "$(RED)ERROR: Kernel binary not found$(NC)"; \
 		exit 1; \

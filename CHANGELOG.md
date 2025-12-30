@@ -2,7 +2,32 @@
 
 All notable changes and fixes to this project are documented in this file.
 
-## [1.3.0] - 2025-12-30 - Documentation Reorganization
+## [1.3.1] - 2024-12-30 - Kernel Boot Fix
+
+### Fixed
+- **Kernel now boots and displays correctly** - Fixed critical boot hang issue
+- **Memory address mismatch** - Aligned bootloader load address (0x10000) with kernel linker script
+- **Kernel architecture** - Changed kernel from 64-bit to 16-bit to match bootloader real mode
+- **Color output working** - Kernel now uses BIOS interrupts for colored text output
+- Boot sequence now completes successfully and shows colorful VGA output
+
+### Changed
+- Kernel compiled as 16-bit code (using 16bit_target.json) instead of 64-bit
+- Kernel uses BIOS INT 10h for text output instead of direct VGA memory writes
+- Kernel linker script now places code at 0x10000 (matching bootloader)
+- Bootloader loads 64 sectors (32KB) instead of 16 sectors for larger kernel
+- Makefile updated to build kernel as 16-bit target
+
+### Technical Details
+- **Root cause**: Bootloader (16-bit real mode) was jumping to kernel compiled as 64-bit code
+- **Solution**: Compile kernel as 16-bit code using BIOS interrupts
+- **Memory layout**: Bootloader at 0x7C00, Kernel at 0x10000
+- **Next phase**: Phase 2 (Protected Mode) will enable 32-bit, then Phase 3 (Long Mode) for 64-bit
+
+### Note
+This is a temporary solution for Phase 1. The roadmap Phase 2 (Protected Mode) and Phase 3 (Long Mode) will transition to 32-bit and then 64-bit properly with GDT, paging, etc.
+
+## [1.3.0] - 2024-12-30 - Documentation Reorganization
 
 ### Added
 - **Comprehensive documentation structure** in `docs/` folder
