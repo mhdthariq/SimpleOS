@@ -491,7 +491,7 @@ What actually happens.
 **Environment**
 - OS: Ubuntu 22.04
 - QEMU version: 7.2.0
-- Rust version: nightly-2024-12-01
+- Rust version: nightly-2025-12-01
 
 **Logs**
 ```

@@ -327,5 +327,5 @@ Docs:       ~2000 lines markdown
 
 ---
 
-**Last updated:** December 30, 2024  
+**Last updated:** December 30, 2025  
 **Version:** 1.1.0 (Color Update)

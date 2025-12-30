@@ -2,7 +2,7 @@
 
 All notable changes and fixes to this project are documented in this file.
 
-## [1.3.0] - 2024-12-30 - Documentation Reorganization
+## [1.3.0] - 2025-12-30 - Documentation Reorganization
 
 ### Added
 - **Comprehensive documentation structure** in `docs/` folder
@@ -44,7 +44,7 @@ docs/
 - ✅ Easy for contributors to get started
 - ✅ Professional project structure
 
-## [1.1.0] - 2024-12-30 - Color Update
+## [1.1.0] - 2025-12-30 - Color Update
 
 ### Added
 - **Full 16-color VGA text mode support** in kernel
@@ -79,7 +79,7 @@ docs/
 
 ---
 
-## [1.0.0] - 2024-12-29 - Initial Working Version
+## [1.0.0] - 2025-12-29 - Initial Working Version
 
 ### Added
 - **Complete workspace restructure** with bootloader and kernel separation

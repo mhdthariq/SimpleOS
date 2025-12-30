@@ -252,7 +252,7 @@ Areas that could use help:
 
 ---
 
-**Last Updated:** December 30, 2024  
+**Last Updated:** December 30, 2025  
 **Documentation Version:** 1.3.0
 
 **Happy Learning!** 🚀

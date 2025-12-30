@@ -573,5 +573,5 @@ cat future/README.md
 
 ---
 
-**Last Updated:** December 30, 2024  
+**Last Updated:** December 30, 2025  
 **Version:** 1.2.0
